@@ -279,7 +279,7 @@ let dbConnectionStatus = {
   lastConnected: null
 };
 
-let isConnecting = false;
+let connectionPromise = null;
 
 // Connect to MongoDB Atlas & auto-seed if needed
 async function connectDB() {
@@ -288,41 +288,43 @@ async function connectDB() {
     return;
   }
   if (!mongoUri) return;
-  if (isConnecting) return;
-  isConnecting = true;
 
-  try {
-    await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 8000,
-    });
-    dbConnectionStatus.connected = true;
-    dbConnectionStatus.error = null;
-    dbConnectionStatus.lastConnected = new Date().toISOString();
-    console.log(`[MongoDB Atlas] Successfully connected to database: 'servicedesk'`);
+  if (!connectionPromise) {
+    connectionPromise = (async () => {
+      try {
+        await mongoose.connect(mongoUri, {
+          serverSelectionTimeoutMS: 8000,
+        });
+        dbConnectionStatus.connected = true;
+        dbConnectionStatus.error = null;
+        dbConnectionStatus.lastConnected = new Date().toISOString();
+        console.log(`[MongoDB Atlas] Successfully connected to database: 'servicedesk'`);
 
-    // Ensure departments table is populated
-    const deptCount = await Department.countDocuments();
-    if (deptCount === 0) {
-      console.log(`[MongoDB Atlas] Seeding initial 109 departments into 'departments' table...`);
-      const docs = INITIAL_DEPARTMENTS.map((d) => ({ name: d }));
-      await Department.insertMany(docs);
-      console.log(`[MongoDB Atlas] Successfully seeded ${docs.length} departments.`);
-    }
+        // Ensure departments table is populated
+        const deptCount = await Department.countDocuments();
+        if (deptCount === 0) {
+          const docs = INITIAL_DEPARTMENTS.map((d) => ({ name: d }));
+          await Department.insertMany(docs);
+          console.log(`[MongoDB Atlas] Successfully seeded ${docs.length} departments.`);
+        }
 
-    // Ensure officers table is populated
-    const officerCount = await Officer.countDocuments();
-    if (officerCount === 0) {
-      console.log(`[MongoDB Atlas] Seeding 5 officers into 'officers' table...`);
-      await Officer.insertMany(INITIAL_OFFICERS);
-      console.log(`[MongoDB Atlas] Successfully seeded 5 service desk officers.`);
-    }
-  } catch (err) {
-    dbConnectionStatus.connected = false;
-    dbConnectionStatus.error = err.message;
-    console.error('[MongoDB Atlas] Connection error:', err.message);
-  } finally {
-    isConnecting = false;
+        // Ensure officers table is populated
+        const officerCount = await Officer.countDocuments();
+        if (officerCount === 0) {
+          await Officer.insertMany(INITIAL_OFFICERS);
+          console.log(`[MongoDB Atlas] Successfully seeded ${INITIAL_OFFICERS.length} service desk officers.`);
+        }
+      } catch (err) {
+        dbConnectionStatus.connected = false;
+        dbConnectionStatus.error = err.message;
+        console.error('[MongoDB Atlas] Connection error:', err.message);
+      } finally {
+        connectionPromise = null;
+      }
+    })();
   }
+
+  await connectionPromise;
 }
 
 connectDB();
@@ -691,35 +693,63 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Officers API (returns the 5 registered officers)
+// Officers API (returns the registered officers, auto-seeds if empty)
 app.get('/api/officers', async (req, res) => {
   try {
-    const officers = await Officer.find().sort({ name: 1 });
+    let officers = await Officer.find().sort({ name: 1 });
+    if (!officers || officers.length === 0) {
+      try {
+        await Officer.insertMany(INITIAL_OFFICERS);
+        officers = await Officer.find().sort({ name: 1 });
+      } catch (e) {
+        officers = INITIAL_OFFICERS;
+      }
+    }
     res.json({
       success: true,
       count: officers.length,
       officers: officers.map((o) => ({
-        id: o._id,
+        id: o._id || o.email,
         name: o.name,
         email: o.email
       }))
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.json({
+      success: true,
+      count: INITIAL_OFFICERS.length,
+      officers: INITIAL_OFFICERS.map((o) => ({
+        id: o.email,
+        name: o.name,
+        email: o.email
+      }))
+    });
   }
 });
 
-// Departments API (dynamic list from MongoDB)
+// Departments API (dynamic list from MongoDB, auto-seeds if empty)
 app.get('/api/departments', async (req, res) => {
   try {
-    const departments = await Department.find().sort({ name: 1 });
+    let departments = await Department.find().sort({ name: 1 });
+    if (!departments || departments.length === 0) {
+      try {
+        await Department.insertMany(INITIAL_DEPARTMENTS.map((d) => ({ name: d })));
+        departments = await Department.find().sort({ name: 1 });
+      } catch (e) {
+        departments = INITIAL_DEPARTMENTS.map((d) => ({ name: d }));
+      }
+    }
     res.json({
       success: true,
       count: departments.length,
       departments: departments.map((d) => d.name)
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
+    res.json({
+      success: true,
+      count: INITIAL_DEPARTMENTS.length,
+      departments: INITIAL_DEPARTMENTS
+    });
   }
 });
 

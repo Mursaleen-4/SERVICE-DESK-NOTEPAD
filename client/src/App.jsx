@@ -9,13 +9,22 @@ import VideoSettingsModal from './components/VideoSettingsModal';
 import Toast from './components/Toast';
 import MessageBoxModal from './components/MessageBoxModal';
 import { openOutlookDraft } from './utils/outlook';
+import { DEFAULT_OFFICERS, DEFAULT_DEPARTMENTS } from './constants/defaults';
 
 export default function App() {
-  // Database & Records State
+  // Database & Records State (Hydrated immediately with defaults to prevent blank dropdown)
   const [records, setRecords] = useState([]);
-  const [departments, setDepartments] = useState([]);
-  const [officers, setOfficers] = useState([]);
-  const [currentOfficer, setCurrentOfficer] = useState(null);
+  const [departments, setDepartments] = useState(DEFAULT_DEPARTMENTS);
+  const [officers, setOfficers] = useState(DEFAULT_OFFICERS);
+  const [currentOfficer, setCurrentOfficer] = useState(() => {
+    try {
+      const savedEmail = localStorage.getItem('servicedesk_officer_email');
+      if (savedEmail) {
+        return DEFAULT_OFFICERS.find((o) => o.email.toLowerCase() === savedEmail.toLowerCase()) || null;
+      }
+    } catch (e) {}
+    return null;
+  });
   const [stats, setStats] = useState(null);
   const [dbStatus, setDbStatus] = useState({ connected: false });
   const [loading, setLoading] = useState(true);
@@ -77,28 +86,31 @@ export default function App() {
     }
   }, [showToast]);
 
-  // Fetch Officers from MongoDB Atlas
+  // Fetch Officers from MongoDB Atlas (with guaranteed fallback to DEFAULT_OFFICERS)
   const fetchOfficers = useCallback(async () => {
     try {
       const res = await fetch('/api/officers');
       const data = await res.json();
-      if (data.success && Array.isArray(data.officers)) {
+      if (data.success && Array.isArray(data.officers) && data.officers.length > 0) {
         setOfficers(data.officers);
         // Sync saved officer session from localStorage
         const savedEmail = localStorage.getItem('servicedesk_officer_email');
         if (savedEmail) {
-          const matched = data.officers.find((o) => o.email === savedEmail);
+          const matched = data.officers.find((o) => o.email.toLowerCase() === savedEmail.toLowerCase());
           if (matched) setCurrentOfficer(matched);
         }
+      } else {
+        setOfficers(DEFAULT_OFFICERS);
       }
     } catch (err) {
-      showToast('error', 'Officers Sync', 'Could not load officers list from database.');
+      setOfficers(DEFAULT_OFFICERS);
     }
-  }, [showToast]);
+  }, []);
 
   // Handle Officer selection
   const handleSelectOfficer = (email) => {
-    const matched = officers.find((o) => o.email === email);
+    const matched = officers.find((o) => o.email.toLowerCase() === email.toLowerCase()) ||
+      DEFAULT_OFFICERS.find((o) => o.email.toLowerCase() === email.toLowerCase());
     if (matched) {
       setCurrentOfficer(matched);
       localStorage.setItem('servicedesk_officer_email', matched.email);
@@ -106,18 +118,20 @@ export default function App() {
     }
   };
 
-  // Fetch Departments dynamically from MongoDB Atlas
+  // Fetch Departments dynamically from MongoDB Atlas (with guaranteed fallback)
   const fetchDepartments = useCallback(async () => {
     try {
       const res = await fetch('/api/departments');
       const data = await res.json();
-      if (data.success && Array.isArray(data.departments)) {
+      if (data.success && Array.isArray(data.departments) && data.departments.length > 0) {
         setDepartments(data.departments);
+      } else {
+        setDepartments(DEFAULT_DEPARTMENTS);
       }
     } catch (err) {
-      showToast('error', 'Departments Sync', 'Could not load departments from database.');
+      setDepartments(DEFAULT_DEPARTMENTS);
     }
-  }, [showToast]);
+  }, []);
 
   // Fetch Stats Summary
   const fetchStats = useCallback(async () => {
