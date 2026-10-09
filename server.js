@@ -681,63 +681,62 @@ async function sendOutlookOrganizationEmail({ record, senderName, senderEmail, r
 
 // API Routes
 
-// Health & Status
+// Health & Status with safe diagnostic inspection (never reveals secrets)
 app.get('/api/health', (req, res) => {
+  const rawUri = process.env.MONGODB_URI || '';
+  const maskedUri = rawUri ? rawUri.replace(/\/\/([^:]+):([^@]+)@/, '//$1:****@') : 'NOT_SET';
+
   res.json({
     status: 'ok',
     database: {
       ...dbConnectionStatus,
       readyState: mongoose.connection.readyState
     },
+    diagnostics: {
+      envConfigured: Boolean(rawUri),
+      uriFormat: rawUri.startsWith('mongodb+srv://') || rawUri.startsWith('mongodb://'),
+      maskedConnection: maskedUri,
+      targetDatabase: 'servicedesk'
+    },
     timestamp: new Date().toISOString()
   });
 });
 
-// Officers API (returns the registered officers, auto-seeds if empty)
+// Officers API (returns registered officers directly from MongoDB Atlas)
 app.get('/api/officers', async (req, res) => {
   try {
     let officers = await Officer.find().sort({ name: 1 });
-    if (!officers || officers.length === 0) {
-      try {
-        await Officer.insertMany(INITIAL_OFFICERS);
-        officers = await Officer.find().sort({ name: 1 });
-      } catch (e) {
-        officers = INITIAL_OFFICERS;
-      }
+    // Seed initial records if collection is completely fresh in Atlas
+    if ((!officers || officers.length === 0) && mongoose.connection.readyState === 1) {
+      await Officer.insertMany(INITIAL_OFFICERS);
+      officers = await Officer.find().sort({ name: 1 });
     }
     res.json({
       success: true,
       count: officers.length,
       officers: officers.map((o) => ({
-        id: o._id || o.email,
+        id: o._id,
         name: o.name,
         email: o.email
       }))
     });
   } catch (error) {
-    res.json({
-      success: true,
-      count: INITIAL_OFFICERS.length,
-      officers: INITIAL_OFFICERS.map((o) => ({
-        id: o.email,
-        name: o.name,
-        email: o.email
-      }))
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch officers from MongoDB Atlas: ' + error.message,
+      officers: []
     });
   }
 });
 
-// Departments API (dynamic list from MongoDB, auto-seeds if empty)
+// Departments API (dynamic list directly from MongoDB Atlas)
 app.get('/api/departments', async (req, res) => {
   try {
     let departments = await Department.find().sort({ name: 1 });
-    if (!departments || departments.length === 0) {
-      try {
-        await Department.insertMany(INITIAL_DEPARTMENTS.map((d) => ({ name: d })));
-        departments = await Department.find().sort({ name: 1 });
-      } catch (e) {
-        departments = INITIAL_DEPARTMENTS.map((d) => ({ name: d }));
-      }
+    // Seed initial records if collection is completely fresh in Atlas
+    if ((!departments || departments.length === 0) && mongoose.connection.readyState === 1) {
+      await Department.insertMany(INITIAL_DEPARTMENTS.map((d) => ({ name: d })));
+      departments = await Department.find().sort({ name: 1 });
     }
     res.json({
       success: true,
@@ -745,10 +744,10 @@ app.get('/api/departments', async (req, res) => {
       departments: departments.map((d) => d.name)
     });
   } catch (error) {
-    res.json({
-      success: true,
-      count: INITIAL_DEPARTMENTS.length,
-      departments: INITIAL_DEPARTMENTS
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch departments from MongoDB Atlas: ' + error.message,
+      departments: []
     });
   }
 });
