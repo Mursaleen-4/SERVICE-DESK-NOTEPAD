@@ -848,7 +848,7 @@ app.post('/api/records/forward', async (req, res) => {
           forwardedTo: recipientEmail,
           forwardedBy: senderEmail
         },
-        { new: true }
+        { returnDocument: 'after' }
       );
     } else if (req.body.record) {
       record = req.body.record;
@@ -966,7 +966,7 @@ app.put('/api/records/:id', async (req, res) => {
       updateData.forwardedBy = req.body.forwardIssue && req.body.senderEmail ? req.body.senderEmail : null;
     }
 
-    const updated = await CallRecord.findByIdAndUpdate(id, updateData, { new: true, runValidators: true });
+    const updated = await CallRecord.findByIdAndUpdate(id, updateData, { returnDocument: 'after', runValidators: true });
     if (!updated) {
       return res.status(404).json({ success: false, message: 'Record not found' });
     }
