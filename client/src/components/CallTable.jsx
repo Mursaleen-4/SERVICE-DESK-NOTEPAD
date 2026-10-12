@@ -10,7 +10,8 @@ import {
   PhoneCall,
   Clock,
   Sparkles,
-  ArrowUpDown
+  ArrowUpDown,
+  User
 } from 'lucide-react';
 
 export default function CallTable({
@@ -144,6 +145,7 @@ export default function CallTable({
               <th className="py-3 px-4">Caller</th>
               <th className="py-3 px-4">Department</th>
               <th className="py-3 px-4">Issue Summary</th>
+              <th className="py-3 px-4">Logged By</th>
               <th className="py-3 px-4 text-center">Status</th>
               <th className="py-3 px-4 text-right">Actions</th>
             </tr>
@@ -151,7 +153,7 @@ export default function CallTable({
           <tbody className="divide-y divide-zinc-850/60 text-xs">
             {loading ? (
               <tr>
-                <td colSpan={7} className="py-16 text-center text-slate-400">
+                <td colSpan={8} className="py-16 text-center text-slate-400">
                   <div className="flex flex-col items-center justify-center gap-2">
                     <div className="w-6 h-6 border-2 border-sky-400 border-t-transparent rounded-full animate-spin" />
                     <span className="font-mono text-xs">Synchronizing with MongoDB Atlas...</span>
@@ -160,7 +162,7 @@ export default function CallTable({
               </tr>
             ) : records.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-16 text-center text-slate-400">
+                <td colSpan={8} className="py-16 text-center text-slate-400">
                   <div className="max-w-sm mx-auto flex flex-col items-center justify-center gap-3">
                     <div className="w-12 h-12 rounded-xl bg-zinc-900 border border-zinc-800 flex items-center justify-center text-slate-500">
                       <PhoneCall className="w-6 h-6" />
@@ -242,6 +244,14 @@ export default function CallTable({
                           Note: {r.resolutionNotes}
                         </p>
                       )}
+                    </td>
+
+                    {/* Logged By Officer */}
+                    <td className="py-3.5 px-4 whitespace-nowrap">
+                      <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-zinc-900/90 border border-zinc-800 text-slate-300 font-mono text-[11px]">
+                        <User className="w-3 h-3 text-sky-400/80" />
+                        <span className="font-semibold text-sky-300">{r.loggedBy || 'Unknown'}</span>
+                      </div>
                     </td>
 
                     {/* Status Badge (Quick Clickable Toggle) */}

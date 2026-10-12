@@ -1,4 +1,3 @@
-import React, { useState, useEffect, useRef } from 'react';
 import {
   X,
   PhoneCall,
@@ -13,6 +12,7 @@ import {
   Mail,
   Send
 } from 'lucide-react';
+import { ADDITIONAL_FORWARD_RECIPIENTS } from '../constants/forwardRecipients';
 
 export default function CallFormModal({
   isOpen,
@@ -47,10 +47,15 @@ export default function CallFormModal({
 
   const dropdownRef = useRef(null);
 
-  // Filter officers other than the logged-in user
-  const otherOfficers = officers.filter(
-    (o) => !currentOfficer || o.email.toLowerCase() !== currentOfficer.email.toLowerCase()
-  );
+  // Filter officers other than logged-in user + additional forward email recipients
+  const forwardRecipients = [
+    ...officers.filter(
+      (o) => !currentOfficer || o.email.toLowerCase() !== currentOfficer.email.toLowerCase()
+    ),
+    ...ADDITIONAL_FORWARD_RECIPIENTS.filter(
+      (e) => !currentOfficer || e.email.toLowerCase() !== currentOfficer.email.toLowerCase()
+    )
+  ];
 
   const getCurrentFormattedTime = () => {
     return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true });
@@ -70,10 +75,10 @@ export default function CallFormModal({
       setDeptQuery(initialRecord.department || '');
       setSelectedDept(initialRecord.department || '');
       setForwardIssue(Boolean(initialRecord.forwardedTo));
-      const targetOfficerEmail = otherOfficers.find(
+      const targetRecipientEmail = forwardRecipients.find(
         (o) => o.email.toLowerCase() === initialRecord.forwardedTo?.toLowerCase()
       )?.email;
-      setForwardToEmail(targetOfficerEmail || initialRecord.forwardedTo || (otherOfficers.length > 0 ? otherOfficers[0].email : ''));
+      setForwardToEmail(targetRecipientEmail || initialRecord.forwardedTo || (forwardRecipients.length > 0 ? forwardRecipients[0].email : ''));
     } else {
       setFormData({
         time: getCurrentFormattedTime(),
@@ -88,7 +93,7 @@ export default function CallFormModal({
       setDeptQuery('');
       setSelectedDept('');
       setForwardIssue(false);
-      setForwardToEmail(otherOfficers.length > 0 ? otherOfficers[0].email : '');
+      setForwardToEmail(forwardRecipients.length > 0 ? forwardRecipients[0].email : '');
     }
     setIsDropdownOpen(false);
     setErrorMsg(null);
@@ -530,30 +535,30 @@ export default function CallFormModal({
               <div className="mt-2.5 p-3.5 rounded-lg bg-zinc-900/90 border border-zinc-700/80 space-y-2 animate-in fade-in">
                 <div className="flex items-center justify-between text-[11px]">
                   <span className="uppercase tracking-wider font-semibold text-slate-400">
-                    Forward To Officer (Recipient Email):
+                    Forward To (Recipient Email):
                   </span>
                   <span className="text-slate-500 font-mono">
-                    {otherOfficers.length} other officer(s)
+                    {forwardRecipients.length} available recipient(s)
                   </span>
                 </div>
 
-                {otherOfficers.length > 0 ? (
+                {forwardRecipients.length > 0 ? (
                   <select
                     value={forwardToEmail}
                     onChange={(e) => setForwardToEmail(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg bg-zinc-950 border border-zinc-700 text-slate-100 text-xs font-mono focus:outline-none focus:border-sky-500 cursor-pointer"
                     required={forwardIssue}
                   >
-                    <option value="" disabled>-- Select Officer Email --</option>
-                    {otherOfficers.map((off) => (
-                      <option key={off.email} value={off.email} className="bg-zinc-900">
-                        {off.name} &lt;{off.email}&gt;
+                    <option value="" disabled>-- Select Recipient Email --</option>
+                    {forwardRecipients.map((rec) => (
+                      <option key={rec.email} value={rec.email} className="bg-zinc-900">
+                        {rec.name} &lt;{rec.email}&gt;
                       </option>
                     ))}
                   </select>
                 ) : (
                   <div className="p-2 text-xs text-amber-400 bg-amber-950/40 rounded border border-amber-800">
-                    No other officers found in database.
+                    No recipients available to forward.
                   </div>
                 )}
                 <p className="text-[11px] text-slate-400 leading-snug">

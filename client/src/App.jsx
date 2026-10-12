@@ -196,7 +196,8 @@ export default function App() {
       const payload = {
         ...formData,
         senderName: currentOfficer?.name,
-        senderEmail: currentOfficer?.email
+        senderEmail: currentOfficer?.email,
+        loggedBy: editingRecord?.loggedBy || currentOfficer?.name || 'Unknown'
       };
 
       if (editingRecord) {
@@ -377,6 +378,7 @@ export default function App() {
       'Caller Name',
       'Department',
       'Issue',
+      'Logged By',
       'Priority',
       'Status',
       'Resolution Notes',
@@ -392,6 +394,7 @@ export default function App() {
       `"${(r.name || '').replace(/"/g, '""')}"`,
       `"${(r.department || '').replace(/"/g, '""')}"`,
       `"${(r.issue || '').replace(/"/g, '""')}"`,
+      `"${(r.loggedBy || '').replace(/"/g, '""')}"`,
       `"${r.priority || ''}"`,
       `"${r.status || ''}"`,
       `"${(r.resolutionNotes || '').replace(/"/g, '""')}"`,

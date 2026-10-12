@@ -1,4 +1,3 @@
-import React, { useState } from 'react';
 import {
   X,
   Clock,
@@ -10,8 +9,10 @@ import {
   CheckCircle2,
   Mail,
   Send,
-  ExternalLink
+  ExternalLink,
+  ShieldCheck
 } from 'lucide-react';
+import { ADDITIONAL_FORWARD_RECIPIENTS } from '../constants/forwardRecipients';
 
 export default function RecordDetailsModal({
   record,
@@ -27,11 +28,16 @@ export default function RecordDetailsModal({
 
   if (!record) return null;
 
-  const otherOfficers = officers.filter(
-    (o) => !currentOfficer || o.email.toLowerCase() !== currentOfficer.email.toLowerCase()
-  );
+  const forwardRecipients = [
+    ...officers.filter(
+      (o) => !currentOfficer || o.email.toLowerCase() !== currentOfficer.email.toLowerCase()
+    ),
+    ...ADDITIONAL_FORWARD_RECIPIENTS.filter(
+      (e) => !currentOfficer || e.email.toLowerCase() !== currentOfficer.email.toLowerCase()
+    )
+  ];
 
-  const targetEmail = selectedOfficerEmail || (otherOfficers.length > 0 ? otherOfficers[0].email : '');
+  const targetEmail = selectedOfficerEmail || (forwardRecipients.length > 0 ? forwardRecipients[0].email : '');
 
   const handleSendEmail = async () => {
     if (!targetEmail || !onForward) return;
@@ -82,7 +88,7 @@ export default function RecordDetailsModal({
         {/* Content */}
         <div className="p-6 space-y-4 text-xs overflow-y-auto">
           {/* Key metadata grid */}
-          <div className="grid grid-cols-2 gap-3 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800">
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 p-3 rounded-lg bg-zinc-900/60 border border-zinc-800">
             <div>
               <span className="text-slate-400 flex items-center gap-1 font-semibold uppercase text-[10px]">
                 <Clock className="w-3 h-3 text-sky-400" /> Time & Date
@@ -113,6 +119,14 @@ export default function RecordDetailsModal({
               </span>
               <p className="text-slate-200 mt-0.5 font-semibold text-sm">
                 {record.department}
+              </p>
+            </div>
+            <div>
+              <span className="text-slate-400 flex items-center gap-1 font-semibold uppercase text-[10px]">
+                <ShieldCheck className="w-3 h-3 text-sky-400" /> Logged By
+              </span>
+              <p className="text-sky-300 mt-0.5 font-semibold text-sm font-mono">
+                {record.loggedBy || 'Unknown'}
               </p>
             </div>
           </div>
@@ -184,18 +198,18 @@ export default function RecordDetailsModal({
               )}
             </div>
 
-            {otherOfficers.length > 0 ? (
+            {forwardRecipients.length > 0 ? (
               <div className="space-y-2">
                 <div className="flex items-center justify-between text-[11px] text-slate-400">
-                  <span>Select Recipient Officer:</span>
-                  <span className="font-mono text-slate-500">{otherOfficers.length} available</span>
+                  <span>Select Recipient Email:</span>
+                  <span className="font-mono text-slate-500">{forwardRecipients.length} available</span>
                 </div>
                 <select
                   value={targetEmail}
                   onChange={(e) => setSelectedOfficerEmail(e.target.value)}
                   className="w-full px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-700 text-slate-100 text-xs font-mono focus:outline-none focus:border-sky-500 cursor-pointer"
                 >
-                  {otherOfficers.map((o) => (
+                  {forwardRecipients.map((o) => (
                     <option key={o.email} value={o.email} className="bg-zinc-900">
                       {o.name} &lt;{o.email}&gt;
                     </option>
@@ -218,7 +232,7 @@ export default function RecordDetailsModal({
                 </p>
               </div>
             ) : (
-              <p className="text-xs text-slate-500 font-mono">No other officers available to forward.</p>
+              <p className="text-xs text-slate-500 font-mono">No recipients available to forward.</p>
             )}
           </div>
         </div>

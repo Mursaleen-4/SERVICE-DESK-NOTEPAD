@@ -255,6 +255,11 @@ const CallRecordSchema = new mongoose.Schema(
       type: String,
       default: ''
     },
+    loggedBy: {
+      type: String,
+      default: 'Unknown',
+      trim: true
+    },
     forwardedTo: {
       type: String,
       default: null
@@ -267,7 +272,7 @@ const CallRecordSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-CallRecordSchema.index({ name: 'text', exchangeNumber: 'text', issue: 'text', department: 'text' });
+CallRecordSchema.index({ name: 'text', exchangeNumber: 'text', issue: 'text', department: 'text', loggedBy: 'text' });
 
 const CallRecord = mongoose.model('CallRecord', CallRecordSchema);
 
@@ -396,6 +401,12 @@ function buildIncidentHtmlTable({ record, senderName, senderEmail }) {
             <td style="padding: 10px 12px; font-weight: bold; color: #94a3b8; background-color: #111620;">Status</td>
             <td style="padding: 10px 12px; background-color: #0d1117;">
               ${record.status || 'Open'}
+            </td>
+          </tr>
+          <tr style="border-bottom: 1px solid #27272a;">
+            <td style="padding: 10px 12px; font-weight: bold; color: #94a3b8; background-color: #111620;">Logged By</td>
+            <td style="padding: 10px 12px; font-family: monospace; font-weight: bold; color: #38bdf8; background-color: #0d1117;">
+              ${record.loggedBy || senderName || 'Service Desk Officer'}
             </td>
           </tr>
           <tr style="border-bottom: 1px solid #27272a;">
@@ -767,7 +778,8 @@ app.post('/api/records', async (req, res) => {
       forwardIssue,
       forwardToEmail,
       senderName,
-      senderEmail
+      senderEmail,
+      loggedBy
     } = req.body;
 
     if (!exchangeNumber || !name || !department || !issue) {
@@ -787,6 +799,7 @@ app.post('/api/records', async (req, res) => {
       status: status || 'Open',
       priority: priority || 'Medium',
       resolutionNotes: resolutionNotes || '',
+      loggedBy: loggedBy || senderName || 'Unknown',
       forwardedTo: forwardIssue && forwardToEmail ? forwardToEmail : null,
       forwardedBy: forwardIssue && senderEmail ? senderEmail : null
     });
@@ -930,7 +943,8 @@ app.get('/api/records', async (req, res) => {
         { name: searchRegex },
         { exchangeNumber: searchRegex },
         { department: searchRegex },
-        { issue: searchRegex }
+        { issue: searchRegex },
+        { loggedBy: searchRegex }
       ];
     }
 

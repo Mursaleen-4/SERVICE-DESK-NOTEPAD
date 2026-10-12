@@ -14,6 +14,7 @@ export function openOutlookDraft({ record, recipientEmail, senderOfficer }) {
     `Department:     ${record.department || ''}`,
     `Priority:       ${record.priority || 'Medium'}`,
     `Status:         ${record.status || 'Open'}`,
+    `Logged By:      ${record.loggedBy || senderOfficer?.name || 'Service Desk Officer'}`,
     '',
     'REPORTED ISSUE:',
     `${record.issue || ''}`
